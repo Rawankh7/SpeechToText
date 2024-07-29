@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Speech to Text Converter</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header>
+        <h1>Speech to Text</h1>
+        <img src="convert.png" alt="">
+    </header> 
+
+<textarea id="results" rows="8" cols="80"></textarea><br>
+<button id="start">Start Speech Recognition</button>
+<button id="stop">Stop Speech Recognition</button>
+<button id="record">Record Voice</button> <!-- New button to record voice -->
+
+
+<script type="text/javascript">
+    var startButton = document.getElementById('start');
+    var stopButton = document.getElementById('stop');
+    var recordButton = document.getElementById('record'); // New record button
+    var resultElement = document.getElementById('results');
+
+    var recognition = new webkitSpeechRecognition();
+    recognition.lang = window.navigator.language;
+    recognition.interimResults = true;
+
+    startButton.addEventListener('click', () => {
+        recognition.start();
+    });
+
+    stopButton.addEventListener('click', () => {
+        recognition.stop();
+    });
+
+    recognition.addEventListener('result', (event) => {
+        const result = event.results[event.results.length - 1][0].transcript;
+        resultElement.textContent = result;
+
+        //send result to the server 
+        fetch('save_text.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'text=' + encodeURIComponent(result)
+    })
+    .then(response => response.text())
+    .then(data => {
+        console.log('Success:', data);
+    })
+    .catch((error) => {
+        console.error('Error:', error);
+    });
+});
+
+    // Function to handle audio recording
+    function startRecording() {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(function(stream) {
+                const mediaRecorder = new MediaRecorder(stream);
+                const chunks = [];
+
+                mediaRecorder.ondataavailable = function(e) {
+                    chunks.push(e.data);
+                };
+
+                mediaRecorder.onstop = function(e) {
+                    const blob = new Blob(chunks, { 'type' : 'audio/ogg; codecs=opus' });
+                    const audioUrl = URL.createObjectURL(blob);
+                    console.log('Recorded Audio URL:', audioUrl);
+                    // You can process or upload `blob` to server if needed
+                };
+
+                mediaRecorder.start();
+                console.log('Recording started...');
+                recordButton.textContent = 'Stop Recording';
+                recordButton.removeEventListener('click', startRecording);
+                recordButton.addEventListener('click', function() {
+                    mediaRecorder.stop();
+                    console.log('Recording stopped...');
+                    recordButton.textContent = 'Record Voice';
+                    recordButton.addEventListener('click', startRecording);
+                });
+            })
+            .catch(function(err) {
+                console.error('Error accessing microphone:', err);
+            });
+    }
+
+    // Event listener for record button
+    recordButton.addEventListener('click', startRecording);
+</script>
+
+ <footer>
+        <p>Rawan Alkhaldy</p>
+    </footer>
+
+</body>
+</html>
